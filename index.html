@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>괄호 없는 식 - 타임어택</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+        body {
+            font-family: 'Noto+Sans+KR', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .option-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .option-btn:active {
+            transform: scale(0.95);
+        }
+        #timer-bar {
+            transition: width 1s linear;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-rose-600 relative overflow-hidden">
+        
+        <!-- 게임 화면 -->
+        <div id="game-screen">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex flex-col">
+                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Time Left</span>
+                    <span id="timer-text" class="text-2xl font-black text-rose-600">45s</span>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Total Score</span>
+                    <span id="score" class="text-2xl font-black text-indigo-600">0</span>
+                </div>
+            </div>
+
+            <!-- 타이틀 진행바 -->
+            <div class="w-full bg-gray-100 h-2 rounded-full mb-8">
+                <div id="timer-bar" class="bg-rose-500 h-2 rounded-full" style="width: 100%"></div>
+            </div>
+
+            <!-- 문제 표시 영역 -->
+            <div id="question-container" class="bg-slate-50 rounded-2xl p-10 text-center mb-8 border border-slate-100 shadow-inner">
+                <span id="equation" class="text-3xl font-black text-slate-800 tracking-tight">
+                    준비되셨나요?
+                </span>
+            </div>
+
+            <!-- 보기 버튼 영역 -->
+            <div id="options-grid" class="grid grid-cols-2 gap-4">
+                <!-- 버튼들은 JS에서 생성됩니다 -->
+            </div>
+
+            <!-- 피드백 메시지 -->
+            <div id="feedback" class="mt-6 text-center font-bold text-lg h-8"></div>
+        </div>
+
+        <!-- 결과 화면 -->
+        <div id="result-screen" class="hidden text-center py-10">
+            <div class="mb-6">
+                <span class="text-6xl">🏆</span>
+            </div>
+            <h2 class="text-3xl font-black text-gray-800 mb-2">게임 종료!</h2>
+            <p class="text-gray-500 mb-8">최종 점수를 확인하세요.</p>
+            
+            <div class="bg-indigo-50 rounded-2xl p-8 mb-8">
+                <span class="block text-sm text-indigo-400 font-bold mb-1">TOTAL SCORE</span>
+                <span id="final-score" class="text-5xl font-black text-indigo-600">0</span>
+                <span class="block text-gray-400 mt-2"><span id="correct-count">0</span>문제 정답</span>
+            </div>
+
+            <button onclick="startGame()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition duration-300 transform hover:-translate-y-1">
+                다시 도전하기
+            </button>
+        </div>
+
+        <!-- 시작 화면 -->
+        <div id="start-screen" class="text-center py-10">
+            <div class="mb-6">
+                <span class="text-6xl">⏱️</span>
+            </div>
+            <h2 class="text-3xl font-black text-gray-800 mb-2">괄호 없는 식</h2>
+            <p class="text-gray-500 mb-8">45초 동안 최대한 많은 문제를 푸세요!<br>(정수) ± (양수) 형태의 문제가 출제됩니다.</p>
+            <button onclick="startGame()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 rounded-xl shadow-lg transition duration-300">
+                시작하기
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        let currentAnswer = 0;
+        let score = 0;
+        let correctCount = 0;
+        let timeLeft = 45; // 시간 제한을 45초로 변경
+        const INITIAL_TIME = 45;
+        let timerInterval = null;
+        let isAnswered = false;
+
+        const equationEl = document.getElementById('equation');
+        const optionsGrid = document.getElementById('options-grid');
+        const feedbackEl = document.getElementById('feedback');
+        const scoreEl = document.getElementById('score');
+        const timerText = document.getElementById('timer-text');
+        const timerBar = document.getElementById('timer-bar');
+        
+        const gameScreen = document.getElementById('game-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const startScreen = document.getElementById('start-screen');
+        const finalScoreEl = document.getElementById('final-score');
+        const correctCountEl = document.getElementById('correct-count');
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function startGame() {
+            score = 0;
+            correctCount = 0;
+            timeLeft = INITIAL_TIME;
+            scoreEl.textContent = "0";
+            timerText.textContent = `${INITIAL_TIME}s`;
+            timerBar.style.width = "100%";
+            
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            
+            generateQuestion();
+            startTimer();
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerText.textContent = `${timeLeft}s`;
+                timerBar.style.width = `${(timeLeft / INITIAL_TIME) * 100}%`;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            gameScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            finalScoreEl.textContent = score;
+            correctCountEl.textContent = correctCount;
+        }
+
+        function generateQuestion() {
+            isAnswered = false;
+            feedbackEl.textContent = '';
+            
+            let num1, num2;
+            
+            // 연산자 결정 (0: 뺄셈, 1: 덧셈)
+            const opType = getRandomInt(0, 1);
+            const operator = opType === 0 ? '-' : '+';
+
+            // num1은 전체 범위 (-50 ~ 50)
+            num1 = getRandomInt(-50, 50);
+            // num2는 항상 양수 (1 ~ 50)로 고정하여 연산자 뒤에 음수가 오지 않게 함
+            num2 = getRandomInt(1, 50);
+
+            if (operator === '-') {
+                currentAnswer = num1 - num2;
+            } else {
+                currentAnswer = num1 + num2;
+            }
+
+            // 수식 표시
+            equationEl.textContent = `${num1} ${operator} ${num2} = ?`;
+
+            let options = [currentAnswer];
+            while (options.length < 4) {
+                let offset = getRandomInt(-15, 15);
+                if (offset === 0) offset = (Math.random() > 0.5 ? 1 : -1); 
+                const wrong = currentAnswer + offset;
+                if (!options.includes(wrong)) options.push(wrong);
+            }
+
+            options.sort(() => Math.random() - 0.5);
+
+            optionsGrid.innerHTML = '';
+            options.forEach(option => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-700 font-bold py-4 rounded-xl text-2xl shadow-sm hover:border-indigo-300';
+                
+                if (option < 0) btn.classList.add('text-rose-600');
+                else btn.classList.add('text-indigo-600');
+
+                btn.textContent = option; 
+                btn.onclick = () => checkAnswer(option, btn);
+                optionsGrid.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected, button) {
+            if (isAnswered || timeLeft <= 0) return;
+            isAnswered = true;
+
+            const allButtons = optionsGrid.querySelectorAll('button');
+            
+            if (selected === currentAnswer) {
+                score += 100;
+                correctCount++;
+                scoreEl.textContent = score;
+                button.classList.remove('bg-white', 'text-slate-700', 'text-rose-600', 'text-indigo-600');
+                button.classList.add('bg-green-500', 'text-white', 'border-green-500');
+                feedbackEl.textContent = '🎯 +100점!';
+                feedbackEl.className = 'mt-6 text-center font-bold text-lg h-8 text-green-600';
+                
+                setTimeout(generateQuestion, 600);
+            } else {
+                button.classList.remove('bg-white', 'text-slate-700', 'text-rose-600', 'text-indigo-600');
+                button.classList.add('bg-rose-500', 'text-white', 'border-rose-500');
+                feedbackEl.textContent = `틀렸어요! 정답은 ${currentAnswer}`;
+                feedbackEl.className = 'mt-6 text-center font-bold text-lg h-8 text-rose-600';
+
+                allButtons.forEach(btn => {
+                    if (parseInt(btn.textContent) === currentAnswer) {
+                        btn.classList.add('ring-4', 'ring-green-400', 'border-green-500');
+                    }
+                });
+
+                setTimeout(generateQuestion, 1200);
+            }
+        }
+
+        window.onload = () => {
+            gameScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        };
+    </script>
+</body>
+</html>
