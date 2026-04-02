@@ -85,7 +85,7 @@
                 <span class="text-6xl">⏱️</span>
             </div>
             <h2 class="text-3xl font-black text-gray-800 mb-2">괄호 없는 식</h2>
-            <p class="text-gray-500 mb-8">45초 동안 최대한 많은 문제를 푸세요!<br>(정수) ± (양수) 형태의 문제가 출제됩니다.</p>
+            <p class="text-gray-500 mb-8">45초 동안 최대한 많은 문제를 푸세요!<br>(두 자리 ± 한 자리) 또는 (한 자리 ± 한 자리) 문제가 나옵니다.</p>
             <button onclick="startGame()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 rounded-xl shadow-lg transition duration-300">
                 시작하기
             </button>
@@ -97,7 +97,7 @@
         let currentAnswer = 0;
         let score = 0;
         let correctCount = 0;
-        let timeLeft = 45; // 시간 제한을 45초로 변경
+        let timeLeft = 45; 
         const INITIAL_TIME = 45;
         let timerInterval = null;
         let isAnswered = false;
@@ -117,6 +117,21 @@
 
         function getRandomInt(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // 특정 범위의 숫자를 가져오되, 한 자리수(-9~9)인지 두 자리수(-50~-10, 10~50)인지 결정
+        function getNumberByType(isSingleDigit) {
+            if (isSingleDigit) {
+                // 한 자리수 (0 제외하고 -9 ~ 9 사이)
+                let num = 0;
+                while (num === 0) num = getRandomInt(-9, 9);
+                return num;
+            } else {
+                // 두 자리수 (-50 ~ -10 또는 10 ~ 50)
+                const isNegative = Math.random() < 0.5;
+                if (isNegative) return getRandomInt(-50, -10);
+                else return getRandomInt(10, 50);
+            }
         }
 
         function startGame() {
@@ -167,10 +182,22 @@
             const opType = getRandomInt(0, 1);
             const operator = opType === 0 ? '-' : '+';
 
-            // num1은 전체 범위 (-50 ~ 50)
-            num1 = getRandomInt(-50, 50);
-            // num2는 항상 양수 (1 ~ 50)로 고정하여 연산자 뒤에 음수가 오지 않게 함
-            num2 = getRandomInt(1, 50);
+            // 문제 유형 결정 (두 자리수끼리의 연산은 제외)
+            // 0: 두자리수 ± 한자리수
+            // 1: 한자리수 ± 두자리수
+            // 2: 한자리수 ± 한자리수
+            const problemType = getRandomInt(0, 2);
+
+            if (problemType === 0) {
+                num1 = getNumberByType(false); // 두자리수
+                num2 = getRandomInt(1, 9);     // 양수 한자리수
+            } else if (problemType === 1) {
+                num1 = getNumberByType(true);  // 한자리수
+                num2 = getRandomInt(10, 50);   // 양수 두자리수
+            } else {
+                num1 = getNumberByType(true);  // 한자리수
+                num2 = getRandomInt(1, 9);     // 양수 한자리수
+            }
 
             if (operator === '-') {
                 currentAnswer = num1 - num2;
@@ -183,7 +210,7 @@
 
             let options = [currentAnswer];
             while (options.length < 4) {
-                let offset = getRandomInt(-15, 15);
+                let offset = getRandomInt(-10, 10);
                 if (offset === 0) offset = (Math.random() > 0.5 ? 1 : -1); 
                 const wrong = currentAnswer + offset;
                 if (!options.includes(wrong)) options.push(wrong);
